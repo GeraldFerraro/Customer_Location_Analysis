@@ -1,0 +1,78 @@
+#Gerald Ferraro
+#Stat456 Dr. Saha
+#Final Project: Gehan test
+#08/02/2023
+
+
+#In this program we will create a function for a Gehan large sample approximation test.
+#The end results will give us the method use, the G-Statistic, and the P-value.
+#The function requires two vectors of test samples from sources.
+#The function is useful for handling truncated data and calculating the scores 
+#necessary to retrieve your test statistic.
+
+
+gehan_test <- function(background, site) {
+  # Create a Function to extract numeric values from the strings
+  get_numeric_value <- function(x) {
+    numeric_values <- as.numeric(gsub("<", "", x))
+    data.frame(original_value = x, numeric_value = numeric_values, is_less_than = grepl("<", x))
+  }
+  
+  # Extract numeric values for both background and site
+  m <- get_numeric_value(background)
+  n <- get_numeric_value(site)
+  
+  
+  # Combine and sort the data by numeric value while keeping "<" in place
+  combined_values <- rbind(m, n)
+  hiM <- c(rep(0,length(background)))
+  hiN <- c(rep(1,length(site)))
+  hi <- append(hiM, hiN)
+  combined_values <- cbind(combined_values, hi)
+  sorted_indices <- order(combined_values$numeric_value)
+  sorted_data <- combined_values[sorted_indices, ]
+  
+  
+  # Create the delta, ei, di, and Ri vectors
+  delta <- ifelse(sorted_data$is_less_than, 0, 1)
+  di <- cumsum(delta)
+  ei <- cumsum(1 - delta)
+  T <- sum(sorted_data$is_less_than)
+  Ri <- ifelse(delta == 1, (di + (T + ei) / 2), ((T + 1 + di) / 2))
+  
+  #normalized ranks
+  N <- length(sorted_data$original_value)
+  aR <- (2 * Ri - N - 1)
+  
+  #Table 1 with the calculated values
+  Table1 <- data.frame(Data = sorted_data,
+                       hi = sorted_data$hi,
+                       delta = delta,
+                       di = di,
+                       ei = ei,
+                       Ri = Ri,
+                       Score_aR = aR)
+  hi_final <- sorted_data$hi
+  #Calculate the Gehan statistic 
+  G <- sum(hi_final * aR) / sqrt(((length(background) * length(site)) * (sum(aR^2)) / (N * (N - 1))))
+  
+  p_value <- (1 - pnorm(abs(G)))
+  
+  method <- "You used the large sample approximation method."
+  
+  result <- list(Table1 = Table1, G = G, p_value = p_value, method = method)
+  return(result)
+}
+
+
+#Verifying the initial table from the example in the project prompt using the Gehan test
+background <- c(1, "<4", 5, 7, "<12", 15, "18", "<21", "<25", 27)
+site <- c(2,"<4", "8", "17", 20, 25, 34, "<35", "40", 43)
+
+gehan_test(background,site)
+
+#Test the function with Data set 1
+background1 <- c(4, "<18", 13, 27, 39, 11, "<23", "<6", "<3", 9, 29, "<19", 36)
+site1 <- c(49, 10, "<17", "<28", 50, 30, 32, 20, "<26", 34, 37, 48, 45)
+#Run the Gehan test for Data set 1
+gehan_test(background1,site1)
